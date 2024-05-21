@@ -1,0 +1,14 @@
+version: '3.8'  # Versi schema Docker Compose yang digunakan
+services:
+  dev-db:
+    image: postgres:13
+    ports:
+      - 5432:5432
+    environment:
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: 4B4Y
+        POSTGRES_DB : nest
+    networks:
+      - akbarsyahn
+networks:
+  akbarsyahn:
