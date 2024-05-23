@@ -4,6 +4,7 @@ import { CreateBookDto, EditBookDto } from './dto';
 import { JwtGuard } from '../auth/guard';
 import { GetUser } from '../auth/decorator';
 import { ApiBearerAuth, ApiBody, ApiCreatedResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { BookDto } from './dto/book.dto';
 
 @ApiBearerAuth()
 @ApiTags('books')
@@ -11,11 +12,12 @@ import { ApiBearerAuth, ApiBody, ApiCreatedResponse, ApiNotFoundResponse, ApiOkR
 @Controller('books')
 export class BookController {
   private readonly logger = new Logger(BookController.name);
-
   constructor(private bookService: BookService) {}
 
+
   @ApiOperation({ summary: 'Create a book' }) // Operation summary
-  @ApiCreatedResponse({ description: 'The book has been successfully created' }) // Response description
+  @ApiCreatedResponse({ description: 'The book has been successfully created'}) // Response description
+  @ApiOkResponse({ description: 'Create a Book', type: BookDto })
   @ApiBody({ type: CreateBookDto })
   @Post()
   createBook(@GetUser('id') userId: number, @Body() dto: CreateBookDto) {
@@ -25,7 +27,7 @@ export class BookController {
 
 
   @ApiOperation({ summary: 'Get all books' })
-  @ApiOkResponse({ description: 'Returns all books' })
+  @ApiOkResponse({ description: 'Returns all books', type: [BookDto] })
   @Get()
   getBooks(@GetUser('id') userId: number) {
     this.logger.log(`Getting books for user ${userId}`);
@@ -33,7 +35,7 @@ export class BookController {
   }
 
   @ApiOperation({ summary: 'Get a book by ID' })
-  @ApiOkResponse({ description: 'Returns a book by ID' })
+  @ApiOkResponse({ description: 'Returns a book by ID', type: [BookDto] })
   @ApiParam({ name: 'id', description: 'Book ID', type: Number })
   @Get(':id')
   getBookById(@GetUser('id') userId: number, @Param('id', ParseIntPipe) bookId: number) {
@@ -42,7 +44,7 @@ export class BookController {
   }
 
   @ApiOperation({ summary: 'Edit a book' })
-  @ApiOkResponse({ description: 'The book has been successfully edited' })
+  @ApiOkResponse({ description: 'The book has been successfully edited', type: [BookDto]  })
   @ApiParam({ name: 'id', description: 'Book ID', type: Number })
   @Patch(':id')
   @ApiBody({ type: EditBookDto })
@@ -52,7 +54,7 @@ export class BookController {
   }
 
   @ApiOperation({ summary: 'Borrow a book' })
-  @ApiOkResponse({ description: 'The book has been successfully borrowed' })
+  @ApiOkResponse({ description: 'The book has been successfully borrowed', type: BookDto })
   @ApiNotFoundResponse({ description: 'Book not found' })
   @ApiParam({ name: 'id', description: 'Book ID', type: Number })
   @Patch(':id/borrow')
@@ -69,7 +71,7 @@ export class BookController {
 }
 
   @ApiOperation({ summary: 'Return a book' })
-  @ApiOkResponse({ description: 'The book has been successfully returned' })
+  @ApiOkResponse({ description: 'The book has been successfully returned', type: BookDto })
   @ApiParam({ name: 'id', description: 'Book ID', type: Number })
   @Patch(':id/return')
   returnBook(@GetUser('id') userId: number, @Param('id', ParseIntPipe) bookId: number) {
@@ -78,7 +80,7 @@ export class BookController {
   }
 
   @ApiOperation({ summary: 'Delete a book' })
-  @ApiOkResponse({ description: 'The book has been successfully deleted' })
+  @ApiOkResponse({ description: 'The book has been successfully deleted', type: BookDto })
   @ApiParam({ name: 'id', description: 'Book ID', type: Number })
   @Delete(':id')
   deleteBook(@Param('id', ParseIntPipe) bookId: number) {
