@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,34 +8,43 @@ datasource db {
 }
 
 model User {
-  id Int @id @default(autoincrement())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  email String @unique
-  hash String
-
-  firstName String?
-  lastName String?
-
-  books Book[]
+  id            Int       @id @default(autoincrement())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  email         String    @unique
+  hash          String
+  firstName     String?
+  lastName      String?
+  borrowedBooks Book[]    @relation("UserBorrowedBooks")
+  ownedBooks    Book[]    @relation("UserOwnedBooks")
+  penalties     Penalty[]
 
   @@map("users")
 }
 
 model Book {
-  id Int @id @default(autoincrement())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  title String 
-  description String?
-  link String
-  summary String?
-  Author String?
-
-  userId Int
-  user User @relation(fields: [userId], references: [id])
+  id          Int      @id @default(autoincrement())
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  code        String   @unique
+  title       String
+  author      String
+  stock       Int
+  ownerId     Int
+  owner       User     @relation("UserOwnedBooks", fields: [ownerId], references: [id])
+  borrowed    Boolean  @default(false)
+  borrowerId  Int?
+  borrower    User?    @relation("UserBorrowedBooks", fields: [borrowerId], references: [id])
 
   @@map("books")
+}
+
+model Penalty {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  startDate DateTime @default(now())
+  endDate   DateTime
+
+  @@map("penalties")
 }
