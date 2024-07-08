@@ -1,50 +1,56 @@
-generator client {
-  provider = "prisma-client-js"
-}
+  generator client {
+    provider = "prisma-client-js"
+  }
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
+  datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+  }
 
-model User {
-  id            Int       @id @default(autoincrement())
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  email         String    @unique
-  hash          String
-  firstName     String?
-  lastName      String?
-  borrowedBooks Book[]    @relation("UserBorrowedBooks")
-  ownedBooks    Book[]    @relation("UserOwnedBooks")
-  penalties     Penalty[]
+  model User {
+    id            Int       @id @default(autoincrement())
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
+    email         String    @unique
+    hash          String
+    firstName     String?
+    lastName      String?
+    token         String?
+    borrowedBooks Book[]    @relation("UserBorrowedBooks")
+    penalties     Penalty[]
+    role          UserRole  @default(USER)
 
-  @@map("users")
-}
+    @@map("users")
+  }
 
-model Book {
-  id          Int      @id @default(autoincrement())
-  updatedAt   DateTime @updatedAt
-  createdAt   DateTime @default(now())
-  code        String   @unique
-  title       String
-  author      String
-  stock       Int
-  ownerId     Int
-  owner       User     @relation("UserOwnedBooks", fields: [ownerId], references: [id])
-  borrowed    Boolean  @default(false)
-  borrowerId  Int?
-  borrower    User?    @relation("UserBorrowedBooks", fields: [borrowerId], references: [id])
+  model Book {
+    id          Int      @id @default(autoincrement())
+    updatedAt   DateTime @updatedAt
+    createdAt   DateTime @default(now())
+    code        String   @unique
+    title       String
+    author      String
+    stock       Int
+    borrowed    Boolean  @default(false)
+    borrowerId  Int?
+    borrower    User?    @relation("UserBorrowedBooks", fields: [borrowerId], references: [id])
+    
 
-  @@map("books")
-}
+    @@map("books")
+  }
 
-model Penalty {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  startDate DateTime @default(now())
-  endDate   DateTime
+  model Penalty {
+    id        Int      @id @default(autoincrement())
+    userId    Int
+    user      User     @relation(fields: [userId], references: [id])
+    startDate DateTime @default(now())
+    endDate   DateTime
 
-  @@map("penalties")
-}
+    @@map("penalties")
+  }
+
+  enum UserRole {
+    USER
+    ADMIN
+    SUPER_ADMIN
+  }

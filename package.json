@@ -26,7 +26,10 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "pretest:e2e": "npm run db:test:restart",
-    "test:e2e": "dotenv -e .env.test -- jest --watch --no-cache --config ./test/jest-e2e.json"
+    "test:e2e": "dotenv -e .env.test -- jest --watch --no-cache --config ./test/jest-e2e.json",
+    "prebuild-swagger": "npx openapi-generator-cli generate -i dist/swagger-spec.json -g openapi-yaml -o public/swagger.yaml",
+    "build-swagger": "nest build",
+    "swagger": "npx openapi-generator-cli generate -i dist/swagger-spec.json -g openapi-yaml -o public/swagger.yaml && nest build"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
@@ -36,8 +39,10 @@
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/swagger": "^7.3.1",
+    "@nestjs/throttler": "^5.2.0",
     "@prisma/client": "^5.14.0",
     "argon2": "^0.40.1",
+    "cache-manager-ioredis": "^2.1.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "date-fns": "^3.6.0",

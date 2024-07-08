@@ -7,11 +7,16 @@ export class UserService {
   constructor(private prisma: PrismaService) {}
 
   async getMe(userId: number) {
-    return this.prisma.user.findUnique({
-      where: {
-        id: userId,
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
       },
     });
+    return user;
   }
 
   async editUser(userId: number, dto: EditUserDto) {
@@ -22,8 +27,13 @@ export class UserService {
       data: {
         ...dto,
       },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+      },
     });
-    delete user.hash;
     return user;
   }
 }

@@ -19,7 +19,6 @@ export class CreateBookDto {
   author: string;
 
   @ApiProperty()
-  @IsNotEmpty()
   @IsInt()
   stock: number;
 }

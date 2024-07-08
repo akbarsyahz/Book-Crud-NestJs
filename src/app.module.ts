@@ -5,6 +5,7 @@ import { BookModule } from './book/book.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
 import { TransformResponseInterceptor } from './transform-response/transform-response.interceptor';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   providers: [Logger, TransformResponseInterceptor],
@@ -15,6 +16,11 @@ import { TransformResponseInterceptor } from './transform-response/transform-res
     AuthModule,
     UserModule,
     BookModule,
-    PrismaModule],
+    PrismaModule,
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 5,
+    }]),
+  ],
 })
 export class AppModule {}

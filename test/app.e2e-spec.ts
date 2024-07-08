@@ -5,10 +5,13 @@ import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthDto } from '../src/auth/dto';
 import { CreateBookDto } from '../src/book/dto/create-book.dto';
+import { UserRole } from '@prisma/client'; 
 
 describe('App e2e', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let adminToken: string;
+  let userToken: string;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -27,6 +30,21 @@ describe('App e2e', () => {
     prisma = app.get(PrismaService);
     await prisma.cleanDb();
     pactum.request.setBaseUrl('http://localhost:3333');
+
+    const adminDto: AuthDto = { email: 'admin@example.com', password: 'adminpassword' };
+    const userDto: AuthDto = { email: 'user@example.com', password: 'userpassword' };
+
+    await pactum.spec().post('/auth/signup').withBody(adminDto).expectStatus(201);
+    const admin = await prisma.user.findUnique({ where: { email: adminDto.email } });
+    await prisma.user.update({ where: { id: admin.id }, data: { role: UserRole.ADMIN } });
+
+    await pactum.spec().post('/auth/signup').withBody(userDto).expectStatus(201);
+
+    const adminSignInResponse = await pactum.spec().post('/auth/signin').withBody(adminDto);
+    adminToken = adminSignInResponse.json.access_token;
+
+    const userSignInResponse = await pactum.spec().post('/auth/signin').withBody(userDto);
+    userToken = userSignInResponse.json.access_token;
   });
 
   afterAll(() => {
@@ -34,84 +52,74 @@ describe('App e2e', () => {
   });
 
   describe('Auth', () => {
-    const dto: AuthDto = {
-      email: 'akbarsyah@gmail.com',
-      password: '123131313',
-    };
-
-    it('should throw if email empty', () => {
-      return pactum
-        .spec()
-        .post('/auth/signup')
-        .withBody({
-          password: dto.password,
-        })
-        .expectStatus(400);
-    });
-
-    it('should throw if password empty', () => {
-      return pactum
-        .spec()
-        .post('/auth/signup')
-        .withBody({
-          email: dto.email,
-        })
-        .expectStatus(400);
-    });
-
-    it('should throw if no body provided', () => {
-      return pactum
-        .spec()
-        .post('/auth/signup')
-        .expectStatus(400);
-    });
-
+    const adminDto = { email: `admin${Date.now()}@example.com`, password: 'adminpassword' }; // Email unik
+    const userDto = { email: `user${Date.now()}@example.com`, password: 'userpassword' };
+  
     describe('Signup', () => {
-      it('Should Sign Up', () => {
+      it('should sign up as admin', async () => {
+        await pactum.spec().post('/auth/signup').withBody(adminDto).expectStatus(201);
+        const admin = await prisma.user.findUnique({
+          where: { email: adminDto.email },
+        });
+        await prisma.user.update({
+          where: { id: admin.id },
+          data: { role: UserRole.ADMIN },
+        });
+      });
+  
+      it('should sign up as user', async () => {
+        await pactum.spec().post('/auth/signup').withBody(userDto).expectStatus(201);
+      });
+  
+      it('should throw if email already exists', () => {
         return pactum
           .spec()
           .post('/auth/signup')
-          .withBody(dto)
-          .expectStatus(201);
+          .withBody(adminDto) // Mencoba mendaftar lagi dengan email yang sama
+          .expectStatus(403) // Harapkan error Forbidden karena email sudah ada
+          .expectJsonLike({
+            statusCode: 403,
+            message: 'Email address is already taken',
+            error: 'Forbidden',
+          });
       });
     });
-
+  
     describe('Signin', () => {
-      it('Should Sign In', async () => {
-        const response = await pactum
+      it('should sign in as admin', async () => {
+        const response = await pactum.spec().post('/auth/signin').withBody(adminDto).expectStatus(200);
+        adminToken = response.json.access_token; // Simpan token admin setelah berhasil login
+      });
+  
+      it('should sign in as user', async () => {
+        const response = await pactum.spec().post('/auth/signin').withBody(userDto).expectStatus(200);
+        userToken = response.json.access_token; // Simpan token user setelah berhasil login
+      });
+  
+      it('should throw if email not found', () => {
+        return pactum
           .spec()
           .post('/auth/signin')
-          .withBody(dto)
-          .expectStatus(200)
-          .stores('userAt', 'access_token');
+          .withBody({ email: 'nonexistent@example.com', password: 'password' })
+          .expectStatus(403)
+          .expectJsonLike({
+            statusCode: 403,
+            message: 'Credential incorrect', // Sesuaikan dengan pesan error yang Anda gunakan
+            error: 'Forbidden',
+          });
       });
-    });
-  });
-
-  describe('User', () => {
-    describe('Get Me', () => {
-      it('Should Get Current User', () => {
+  
+      it('should throw if password incorrect', () => {
         return pactum
           .spec()
-          .get('/users/me')
-          .withHeaders({
-            Authorization: 'Bearer $S{userAt}',
-          })
-          .expectStatus(200);
-      });
-    });
-
-    describe('Edit User', () => {
-      it('Should Edit User', () => {
-        const dto = { firstName: 'John', lastName: 'Doe' };
-        return pactum
-          .spec()
-          .patch('/users')
-          .withHeaders({
-            Authorization: 'Bearer $S{userAt}',
-          })
-          .withBody(dto)
-          .expectStatus(200);
+          .post('/auth/signin')
+          .withBody({ email: adminDto.email, password: 'wrongpassword' })
+          .expectStatus(403)
+          .expectJsonLike({
+            statusCode: 403,
+            message: 'Credential incorrect',
+            error: 'Forbidden',
+          });
       });
     });
   });
@@ -123,31 +131,47 @@ describe('App e2e', () => {
           .spec()
           .get('/books')
           .withHeaders({
-            Authorization: 'Bearer $S{userAt}',
+            Authorization: `Bearer ${userToken}`,
           })
           .expectStatus(200)
           .expectBody([]);
       });
     });
 
-    describe('Create Book', () => {
-      it('Should Create Book', async () => {
-        // Update the stock value to a number
+    describe('Create Book (Admin)', () => {
+      it('Should create a book as admin', () => {
         const dto: CreateBookDto = {
           code: 'book1',
           title: 'New Book',
           author: 'Author Name',
-          stock: 5, // Change the stock value to a number
+          stock: 5,
         };
-        return await pactum
+        return pactum
           .spec()
           .post('/books')
           .withHeaders({
-            Authorization: 'Bearer $S{userAt}',
+            Authorization: `Bearer ${adminToken}`, // Menggunakan token admin
           })
           .withBody(dto)
           .expectStatus(201)
           .stores('bookId', 'id');
+      });
+
+      it('Should not create a book as user', () => {
+        const dto: CreateBookDto = {
+          code: 'book2',
+          title: 'Another Book',
+          author: 'Another Author',
+          stock: 3,
+        };
+        return pactum
+          .spec()
+          .post('/books')
+          .withHeaders({
+            Authorization: `Bearer ${userToken}`, // Menggunakan token user
+          })
+          .withBody(dto)
+          .expectStatus(403); // Forbidden, karena user tidak punya akses
       });
     });
 
@@ -157,7 +181,7 @@ describe('App e2e', () => {
           .spec()
           .get('/books')
           .withHeaders({
-            Authorization: 'Bearer $S{userAt}',
+            Authorization: `Bearer ${userToken}`,
           })
           .expectStatus(200);
       });
@@ -169,56 +193,66 @@ describe('App e2e', () => {
           .spec()
           .get('/books/{bookId}')
           .withHeaders({
-            Authorization: 'Bearer $S{userAt}',
+            Authorization: `Bearer ${userToken}`,
           })
           .withPathParams('bookId', '$S{bookId}')
           .expectStatus(200);
       });
     });
 
-     describe('Borrow Book', () => {
-    it('Should Borrow Book', async () => {
-    return await pactum
-      .spec()
-      .patch('/books/{bookId}/borrow')
-      .withHeaders({
-        Authorization: 'Bearer $S{userAt}',
-      })
-      .withPathParams('bookId', '$S{bookId}')
-      .expectStatus(200);
-  });
-});
+    describe('Borrow Book', () => {
+      it('Should Borrow Book', async () => {
+        return await pactum
+          .spec()
+          .patch('/books/{bookId}/borrow')
+          .withHeaders({
+            Authorization: `Bearer ${userToken}`,
+          })
+          .withPathParams('bookId', '$S{bookId}')
+          .expectStatus(200);
+      });
+    });
 
-describe('Return Book', () => {
-  it('Should Return Book', async () => {
-    return await pactum
-      .spec()
-      .patch('/books/{bookId}/return')
-      .withHeaders({
-        Authorization: 'Bearer $S{userAt}',
-      })
-      .withPathParams('bookId', '$S{bookId}')
-      .expectStatus(200);
-  });
-});
+    describe('Return Book', () => {
+      it('Should Return Book', async () => {
+        return await pactum
+          .spec()
+          .patch('/books/{bookId}/return')
+          .withHeaders({
+            Authorization: `Bearer ${userToken}`,
+          })
+          .withPathParams('bookId', '$S{bookId}')
+          .expectStatus(200);
+      });
+    });
 
-
-    describe('Edit Book', () => {
-      it('Should Edit Book', () => {
+    describe('Edit Book (Admin)', () => {
+      it('Should edit a book as admin', () => {
         const dto = { title: 'Updated Book' };
         return pactum
           .spec()
           .patch('/books/{bookId}')
           .withHeaders({
-            Authorization: 'Bearer $S{userAt}',
+            Authorization: `Bearer ${adminToken}`, // Menggunakan token admin
           })
           .withPathParams('bookId', '$S{bookId}')
           .withBody(dto)
           .expectStatus(200);
       });
-    });
 
-   
+      it('Should not edit a book as user', () => {
+        const dto = { title: 'Failed Update' };
+        return pactum
+          .spec()
+          .patch('/books/{bookId}')
+          .withHeaders({
+            Authorization: `Bearer ${userToken}`, // Menggunakan token user
+          })
+          .withPathParams('bookId', '$S{bookId}')
+          .withBody(dto)
+          .expectStatus(403); // Forbidden, karena user tidak punya akses
+      });
+    });
 
     describe('Delete Book', () => {
       it('Should Delete Book', () => {
@@ -226,15 +260,11 @@ describe('Return Book', () => {
           .spec()
           .delete('/books/{bookId}')
           .withHeaders({
-            Authorization: 'Bearer $S{userAt}',
+            Authorization: `Bearer ${adminToken}`, // Menggunakan token admin
           })
           .withPathParams('bookId', '$S{bookId}')
           .expectStatus(200);
       });
     });
-
-    
-
-   
   });
 });

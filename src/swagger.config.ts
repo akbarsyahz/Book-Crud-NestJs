@@ -9,8 +9,9 @@ export function setupSwagger(app: INestApplication) {
     .setDescription('API documentation for the Bookstore application')
     .setVersion('1.0.3')
     .addTag('books', 'Endpoints related to managing books')
-    // .addTag('users', 'Endpoints related to managing users')
+    .addBearerAuth() 
     .build();
+    // .addTag('users', 'Endpoints related to managing users')
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);

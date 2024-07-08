@@ -6,7 +6,7 @@ services:
       - 5432:5432
     environment:
         POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: 4B4Y
+        POSTGRES_PASSWORD: 123
         POSTGRES_DB : nest
     networks:
       - akbarsyahn
@@ -16,7 +16,7 @@ services:
       - 5435:5432
     environment:
         POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: 4B4Y
+        POSTGRES_PASSWORD: 123
         POSTGRES_DB : nest
     networks:
       - akbarsyahn

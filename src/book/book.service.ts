@@ -12,7 +12,6 @@ export class BookService {
   async createBook(userId: number, dto: CreateBookDto) {
     const book = await this.prisma.book.create({
       data: {
-        ownerId: userId,
         ...dto
       },
     });
@@ -24,8 +23,8 @@ export class BookService {
   async getBooks(userId: number) {
     return await this.prisma.book.findMany({
       where: { 
-        ownerId: userId,
-        borrowed: false }, // Only show books that are not borrowed
+        borrowed: false 
+      },
     });
   }
 
@@ -34,7 +33,6 @@ export class BookService {
     return await this.prisma.book.findUnique({
       where: { 
         id: bookId,
-        ownerId: userId
       },
     });
   }
@@ -56,7 +54,7 @@ export class BookService {
     });
   }
 
-  // Borrow a book
+
   // Borrow a book
 async borrowBook(userId: number, bookId: number) {
   try {
@@ -74,12 +72,12 @@ async borrowBook(userId: number, bookId: number) {
 
 
     if (user.borrowedBooks.length >= 2) {
-      throw new ForbiddenException('Members may not borrow more than 2 books');
+      throw new ForbiddenException('Sorry you just can borrow 2 books');
     }
 
     const activePenalty = user.penalties.some(penalty => penalty.endDate > new Date());
     if (activePenalty) {
-      throw new ForbiddenException('Member is currently penalized');
+      throw new ForbiddenException('You is currently penalized');
     }
 
     const book = await this.prisma.book.findUnique({
@@ -164,11 +162,37 @@ async returnBook(userId: number, bookId: number) {
   // Show all members and the number of books being borrowed by each member
   async getAllMembers() {
     const members = await this.prisma.user.findMany({
-      include: { borrowedBooks: true },
+      where: {
+        borrowedBooks: {
+          some: {
+            borrowerId: {
+              not: null, // Filter hanya pengguna yang meminjam buku
+            },
+          },
+        },
+      },
+      select: { 
+        email: true,
+        firstName: true,
+        lastName: true,
+        borrowedBooks: {
+          select: {
+            id: true,
+            code: true,
+            title: true,
+            author: true,
+            stock: true,
+            borrowed: true,
+          },
+        },
+      },
     });
-
+  
     return members.map(member => ({
-      ...member,
+      email: member.email,
+      firstName: member.firstName,
+      lastName: member.lastName,
+      borrowedBooks: member.borrowedBooks,
       booksBorrowed: member.borrowedBooks.length,
     }));
   }
